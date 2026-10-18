@@ -1,19 +1,9 @@
-import { Button } from "@/components/ui/button"
+import { ModulePlaceholder } from "@/components/layout/module-placeholder"
+import { navItems } from "@/lib/nav"
 
-export default function Page() {
-  return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
-  )
+/** 工作台首页。对话、仓库侧栏和工作区面板后续替换这里的占位内容。 */
+export default function DashboardPage() {
+  const item = navItems[0]
+
+  return <ModulePlaceholder title={item.label} description={item.description} />
 }
