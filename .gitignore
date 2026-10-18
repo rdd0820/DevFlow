@@ -1,0 +1,16 @@
+.DS_Store
+node_modules
+**/*/node_modules
+.idea
+.qoder
+.claude
+dist
+desktop/staging
+desktop/release
+.sessions
+.usage
+skills-lock.json
+.devtools
+server/logs
+.tsbuildinfo
+.vscode
