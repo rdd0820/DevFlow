@@ -17,4 +17,3 @@ server/logs
 next-env.d.ts
 .pnpm-store
 .data
-backend/.env
