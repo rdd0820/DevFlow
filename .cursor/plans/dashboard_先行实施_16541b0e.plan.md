@@ -7,10 +7,10 @@ todos:
     status: completed
   - id: m1-repos
     content: Repos：GitHub 同步、连接/列表/刷新/删除页面
-    status: pending
+    status: completed
   - id: m2-code-graph
-    content: Code Graph：检出、符号图、搜索与 PR 快照页面
-    status: pending
+    content: Code Graph 延后，见 later-code-graph
+    status: cancelled
   - id: m3-reports
     content: 研发周报：按时间窗汇总已同步的 Issue/PR/CI
     status: pending
@@ -44,6 +44,9 @@ todos:
   - id: later-actions
     content: 待办：现有菜单全部完成后再同步 GitHub Actions。拉取 workflow run、job，失败运行再下载日志。当前仓库同步只拉 Issue 和 Pull Request
     status: pending
+  - id: later-code-graph
+    content: 待办：现有菜单全部完成后再做 Code Graph。检出仓库、提取符号和调用关系、按符号搜索，并为 PR 准备代码快照。当前页面保持占位
+    status: pending
 isProject: false
 ---
 
@@ -57,9 +60,9 @@ isProject: false
 
 真正独立的只有「已经有仓库数据之后」的三条线，它们彼此不调用：
 
-- Code Graph 只读检出的代码和 PR 列表
 - 研发周报只读已同步的 Issue、PR、CI；团队工作区复用这份周报
 - Drafts 只用仓库 token 去执行写操作
+- Code Graph 延后。它只读检出的代码和 PR 列表，当前菜单不依赖它
 
 项目知识和 RAG 工作室共用同一套检索，必须紧挨着做。Runs 要调用分析 Agent 和检索。Dashboard 要调用前面几乎全部能力，再加会话、记忆和对话。Evals 要在隔离事务里跑生产对话，只能放最后。
 
@@ -69,7 +72,6 @@ isProject: false
 flowchart TD
   base[底座]
   repos[Repos]
-  graph[CodeGraph]
   report[研发周报]
   workspace[团队工作区]
   drafts[Drafts]
@@ -80,14 +82,12 @@ flowchart TD
   dash[Dashboard]
   evals[Evals]
   base --> repos
-  repos --> graph
   repos --> report
   report --> workspace
   repos --> drafts
   repos --> knowledge
   knowledge --> rag
   rag --> agents
-  graph --> agents
   drafts --> agents
   agents --> runs
   runs --> dash
@@ -113,9 +113,7 @@ flowchart TD
 
 ### 2. Code Graph
 
-只依赖第 1 步的仓库和 PR 列表。做检出、符号提取、代码搜索、PR 快照，以及 [frontend/app/code-graph/page.tsx](frontend/app/code-graph/page.tsx)。表：`code_symbols`、`code_relations`。
-
-验证：页面能按符号搜到结果；给一个 PR 准备快照后状态为 `ready`；本地路径仓库的快照返回 `unsupported`。
+延后，见文末待办。页面保持占位。做的时候再检出仓库、提取符号、按符号搜索，并为 PR 准备快照。表：`code_symbols`、`code_relations`。当前菜单不依赖它；以后做 PR、CI 分析时，可以用它补充仓库里的函数和调用。
 
 ### 3. 研发周报
 
@@ -176,3 +174,5 @@ flowchart TD
 本地仓库连接。用户填写本机已有的 git 目录，后端用 git 检查仓库并解析 `origin` 得到所有者和仓库名，再记录本地目录。当前页面只填写所有者和仓库名，仓库表不保存本地目录。
 
 GitHub Actions 同步。拉取仓库的 workflow run 和 job，失败运行再下载日志并写入 `workflow_runs`。当前连接和刷新只同步 Issue 与 Pull Request，Webhook 也不处理 `workflow_run`、`check_suite`、`check_run`。
+
+Code Graph。检出已连接仓库，提取符号和调用、导入关系，页面按符号搜索，并为某条 Pull Request 准备单独的代码快照。当前 Code Graph 页面保持占位，连接和刷新仓库时不建立代码图。

@@ -191,7 +191,7 @@ export class ReposService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * 删除仓库及其已同步的 Issue、PR 和审计。
-   * 不删除远程 Git 仓库，也不删除尚未建立的其它业务表。
+   * 不删除远程 Git 仓库。
    */
   async remove(id: string): Promise<{ repo_id: string; deleted: true }> {
     const repo = await this.find(id);

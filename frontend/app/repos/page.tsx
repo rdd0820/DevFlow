@@ -121,7 +121,6 @@ export default function ReposPage() {
   const [owner, setOwner] = useState('')
   const [repo, setRepo] = useState('')
   const [token, setToken] = useState('')
-  /** 为 true 时 Access Token 显示明文，否则显示圆点 */
   const [tokenVisible, setTokenVisible] = useState(false)
   const [result, setResult] = useState<ActionNotice | null>(null)
   /** 为 true 时结果区显示接口 JSON，否则显示摘要。默认摘要 */
@@ -245,19 +244,37 @@ export default function ReposPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="owner">Owner / Namespace</Label>
-                <Input id="owner" value={owner} placeholder="octocat" onChange={(event) => setOwner(event.target.value)} />
+                <Input
+                  id="owner"
+                  name="github-owner"
+                  autoComplete="off"
+                  value={owner}
+                  placeholder="octocat"
+                  onChange={(event) => setOwner(event.target.value)}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="repo">Repository</Label>
-                <Input id="repo" value={repo} placeholder="Hello-World" onChange={(event) => setRepo(event.target.value)} />
+                <Input
+                  id="repo"
+                  name="github-repository"
+                  autoComplete="off"
+                  value={repo}
+                  placeholder="Hello-World"
+                  onChange={(event) => setRepo(event.target.value)}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="token">Access Token</Label>
                 <div className="relative">
+                  {/* 不用 password。浏览器会把密码框和前面的文本框当成登录框，自动填入已保存的账号密码。隐藏时用圆点样式遮住内容 */}
                   <Input
                     id="token"
-                    type={tokenVisible ? 'text' : 'password'}
-                    className="pr-9"
+                    name="github-access-token"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={tokenVisible ? 'pr-9' : 'pr-9 [-webkit-text-security:disc]'}
                     value={token}
                     placeholder="public repo 可留空，私有仓库需要 token"
                     onChange={(event) => setToken(event.target.value)}
@@ -266,7 +283,7 @@ export default function ReposPage() {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="absolute top-1/2 right-0.5 -translate-y-1/2 text-muted-foreground"
+                    className="absolute top-1/2 right-0.5 -translate-y-1/2 text-muted-foreground active:-translate-y-1/2!"
                     aria-label={tokenVisible ? '隐藏 Access Token' : '显示 Access Token'}
                     aria-pressed={tokenVisible}
                     onClick={() => setTokenVisible((visible) => !visible)}

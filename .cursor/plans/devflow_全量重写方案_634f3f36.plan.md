@@ -35,6 +35,9 @@ todos:
   - id: later-actions
     content: 待办：阶段0到7全部完成后再同步 GitHub Actions。拉取 workflow run、job，失败运行再下载日志。当前仓库同步只拉 Issue 和 Pull Request
     status: pending
+  - id: later-code-graph
+    content: 待办：阶段0到7全部完成后再做 Code Graph。检出仓库、提取符号和调用关系、按符号搜索，并为 PR 准备代码快照
+    status: pending
 isProject: false
 ---
 
@@ -191,6 +194,8 @@ sequenceDiagram
 - 仓库健康快照 `repositoryHealthSnapshot`：`data_status` 取 `not_synced/unknown/failed/partial/stale(>24h)/empty/ready`，仅 ready 时 `data_sufficient=true`；`status` 为 failed->error、empty->skipped、其它 success；confidence 恒 null
 
 ### M3 本地代码工作区
+
+整段延后，待办为 later-code-graph。当前不检出仓库，也不建 `code_symbols`、`code_relations`。
 
 - checkout 路径：当前连接没有用户目录，使用 `{REPO_CHECKOUT_DIR}/{repo.id}-{owner__name}`。用户指定本地目录（`checkout_mode=local`）延后到全部阶段完成后再做
 - git（180s 超时）：已存在则 `fetch --depth 1 origin {branch}`、`checkout`、`pull --ff-only`，失败继续用旧文件；不存在则 `clone --depth 1 --branch {branch}`；HTTPS URL 注入 `x-access-token:{token}@`；托管目录非 git 时先删再 clone，用户目录不删
