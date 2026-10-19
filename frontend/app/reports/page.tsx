@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { apiDelete, apiGet, apiPost } from "@/lib/api"
 
 /** 下拉框里的一条已连接仓库。只需要主键和显示名 */
@@ -290,23 +297,28 @@ export default function ReportsPage() {
             <CardContent className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="repo">仓库</Label>
-                <select
-                  id="repo"
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-                  value={repoId}
+                <Select
+                  items={repos.map((repo) => ({
+                    value: repo.id,
+                    label: repo.full_name,
+                  }))}
+                  value={repoId || null}
                   disabled={!repos.length}
-                  onChange={(event) => setRepoId(event.target.value)}
+                  onValueChange={(value) => {
+                    if (value) setRepoId(value)
+                  }}
                 >
-                  {repos.length ? (
-                    repos.map((repo) => (
-                      <option key={repo.id} value={repo.id}>
+                  <SelectTrigger id="repo" className="w-full">
+                    <SelectValue placeholder="还没有连接仓库" />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false}>
+                    {repos.map((repo) => (
+                      <SelectItem key={repo.id} value={repo.id}>
                         {repo.full_name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">还没有连接仓库</option>
-                  )}
-                </select>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex flex-col gap-2">
