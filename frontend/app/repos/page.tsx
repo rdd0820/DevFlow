@@ -276,7 +276,7 @@ export default function ReposPage() {
                     spellCheck={false}
                     className={tokenVisible ? 'pr-9' : 'pr-9 [-webkit-text-security:disc]'}
                     value={token}
-                    placeholder="public repo 可留空，私有仓库需要 token"
+                    placeholder="建议填写。不填时走匿名额度，每小时只有 60 次"
                     onChange={(event) => setToken(event.target.value)}
                   />
                   <Button

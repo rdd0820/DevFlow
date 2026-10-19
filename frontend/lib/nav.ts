@@ -56,11 +56,11 @@ export const navItems: NavItem[] = [
     label: "研发周报",
     description: "选择仓库和时间范围，生成这一段时间内的研发周报。",
   },
-  {
-    href: "/code-graph",
-    label: "Code Graph",
-    description: "按符号、调用和引用关系查看仓库代码，也可以对照某个 PR 的快照。",
-  },
+  // {
+  //   href: "/code-graph",
+  //   label: "Code Graph",
+  //   description: "按符号、调用和引用关系查看仓库代码，也可以对照某个 PR 的快照。",
+  // },
   {
     href: "/evals",
     label: "Evals",

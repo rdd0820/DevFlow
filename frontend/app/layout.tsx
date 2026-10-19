@@ -28,9 +28,9 @@ export default function RootLayout({
     <html
       lang="zh-CN"
       suppressHydrationWarning
-      className={cn("antialiased", fontSans.variable, "font-mono", jetbrainsMono.variable)}
+      className={cn("h-full antialiased", fontSans.variable, "font-mono", jetbrainsMono.variable)}
     >
-      <body>
+      <body className="flex h-full min-h-full flex-col">
         <ThemeProvider>
           <AppShell>{children}</AppShell>
         </ThemeProvider>

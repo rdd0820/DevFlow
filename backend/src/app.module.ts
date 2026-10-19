@@ -11,6 +11,8 @@ import { PrReviewComment } from './repos/entities/pr-review-comment.entity';
 import { PullRequest } from './repos/entities/pull-request.entity';
 import { Repository } from './repos/entities/repository.entity';
 import { ReposModule } from './repos/repos.module';
+import { Document } from './reports/entities/document.entity';
+import { ReportsModule } from './reports/reports.module';
 import { User } from './users/entities/user.entity';
 import { UsersModule } from './users/users.module';
 import { AppController } from './app.controller';
@@ -29,7 +31,16 @@ const envFileByNodeEnv = {
  * 启动时同步建表的实体。
  * 各模块的表定义集中在这里注册，连接不再单独做模块。
  */
-const entities = [User, AuditLog, Repository, Issue, PullRequest, PrFile, PrReviewComment];
+const entities = [
+  User,
+  AuditLog,
+  Repository,
+  Issue,
+  PullRequest,
+  PrFile,
+  PrReviewComment,
+  Document,
+];
 
 /**
  * 连接后、建表前准备数据库。
@@ -72,6 +83,7 @@ async function prepareDatabase(databaseUrl: string): Promise<void> {
     UsersModule,
     AuditModule,
     ReposModule,
+    ReportsModule,
   ],
   controllers: [AppController],
 })

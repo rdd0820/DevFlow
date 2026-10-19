@@ -9,14 +9,14 @@ import { cn } from "@/lib/utils"
 
 /**
  * 全站顶栏和内容区。
- * 顶栏始终展示全部模块；当前路径对应的入口会高亮，内容区只负责承接各页面。
+ * 外壳占满窗口高度。顶栏不滚动，内容区占满剩余高度；页面更高时只在内容区里滚动。
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+      <header className="z-20 shrink-0 border-b border-border bg-background/90 backdrop-blur">
         <nav className="flex flex-wrap items-center gap-1 px-4 py-2.5">
           <Link href="/" className="mr-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
             <img src="/icon.svg" alt="" className="size-6 shrink-0" />
@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ThemeToggle />
         </nav>
       </header>
-      <main className="min-h-0 flex-1 p-4">{children}</main>
+      <main className="flex min-h-0 flex-1 flex-col overflow-auto p-4">{children}</main>
     </div>
   )
 }

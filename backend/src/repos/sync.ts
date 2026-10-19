@@ -111,6 +111,8 @@ export async function syncRepository(
   };
   const errors: string[] = [];
   const target = { baseUrl: 'https://api.github.com', token };
+  /** 额度用尽后不再发后续请求，避免同一次同步把剩余额度或错误请求继续打满 */
+  let rateLimited = false;
 
   /**
    * 拉一个列表或子资源。失败时写入 errors，并按是否子请求更新数据源状态。
@@ -124,6 +126,7 @@ export async function syncRepository(
     detail: string | null,
     loader: () => Promise<PaginatedList>,
   ): Promise<PaginatedList | null> {
+    if (rateLimited) return null;
     try {
       const items = await loader();
       if (!detail) {
@@ -136,6 +139,7 @@ export async function syncRepository(
       }
       return items;
     } catch (error) {
+      if (error instanceof GithubHttpError && error.retryAt) rateLimited = true;
       const reason = error instanceof GithubHttpError ? error.message : error instanceof Error ? error.name : 'Error';
       errors.push(`${source}${detail ? `/${detail}` : ''}: ${reason}`);
       markSourceFailure(sources[source], Boolean(detail));

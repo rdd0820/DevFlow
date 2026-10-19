@@ -13,7 +13,7 @@ todos:
     status: cancelled
   - id: m3-reports
     content: 研发周报：按时间窗汇总已同步的 Issue/PR/CI
-    status: pending
+    status: completed
   - id: m4-workspaces
     content: 团队工作区：多仓分组与跨仓周报
     status: pending

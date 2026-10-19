@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { AuditLog } from '../audit/entities/audit-log.entity';
+import { Document } from '../reports/entities/document.entity';
 import { Issue } from './entities/issue.entity';
 import { PrFile } from './entities/pr-file.entity';
 import { PrReviewComment } from './entities/pr-review-comment.entity';
@@ -77,6 +78,8 @@ export class ReposService implements OnModuleInit, OnModuleDestroy {
     private readonly reviewComments: Repository<PrReviewComment>,
     @InjectRepository(AuditLog)
     private readonly auditLogs: Repository<AuditLog>,
+    @InjectRepository(Document)
+    private readonly documents: Repository<Document>,
   ) {}
 
   /** 启动定时同步。启动 5 秒后执行第一次，之后按间隔重复 */
@@ -103,12 +106,14 @@ export class ReposService implements OnModuleInit, OnModuleDestroy {
   /**
    * 按所有者和仓库名连接 GitHub 仓库。
    * 先向 GitHub 确认仓库存在，失败则拒绝且不写入记录。确认后立刻同步。
-   * 已存在的 fullName 会更新，空 token 不覆盖旧 token。
+   * 表单没填 token 时用环境变量 GITHUB_TOKEN 访问；两者都空才匿名。
+   * 已存在的 fullName 会更新。只有表单里的 token 会写入，环境变量不落库，空表单不覆盖旧 token。
    */
   async connect(input: ConnectRepoInput): Promise<Record<string, unknown>> {
     const owner = clean(input.owner);
     const repoName = clean(input.repo);
-    const token = clean(input.token);
+    const providedToken = clean(input.token);
+    const token = providedToken || clean(process.env.GITHUB_TOKEN);
     if (!owner || !repoName) {
       throw new BadRequestException('请同时填写所有者和仓库名。');
     }
@@ -130,7 +135,7 @@ export class ReposService implements OnModuleInit, OnModuleDestroy {
     }
     repo.owner = owner;
     repo.name = repoName;
-    if (token) repo.githubToken = token;
+    if (providedToken) repo.githubToken = providedToken;
     repo.description = textOf(remote.description) ?? repo.description ?? null;
     repo.defaultBranch =
       textOf(remote.default_branch) || repo.defaultBranch || 'main';
@@ -190,7 +195,7 @@ export class ReposService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * 删除仓库及其已同步的 Issue、PR 和审计。
+   * 删除仓库及其已同步的 Issue、PR、周报文档和审计。
    * 不删除远程 Git 仓库。
    */
   async remove(id: string): Promise<{ repo_id: string; deleted: true }> {
@@ -214,6 +219,7 @@ export class ReposService implements OnModuleInit, OnModuleDestroy {
     }
     await this.issues.delete({ repoId: repo.id });
     await this.pullRequests.delete({ repoId: repo.id });
+    await this.documents.delete({ repoId: repo.id });
     await this.auditLogs.delete({ repoId: repo.id });
     await this.repos.delete(repo.id);
     return { repo_id: id, deleted: true };

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuditLog } from '../audit/entities/audit-log.entity';
+import { Document } from '../reports/entities/document.entity';
 import { Issue } from './entities/issue.entity';
 import { PrFile } from './entities/pr-file.entity';
 import { PrReviewComment } from './entities/pr-review-comment.entity';
@@ -24,6 +25,7 @@ import { WebhookController } from './webhook.controller';
       PrFile,
       PrReviewComment,
       AuditLog,
+      Document,
     ]),
   ],
   controllers: [ReposController, WebhookController],

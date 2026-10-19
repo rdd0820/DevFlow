@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 /** 带分页覆盖信息的列表。complete 为 false 表示被 limit 截断或后面还有下一页 */
 export type PaginatedList = {
   /** 过滤并截断后的记录 */
@@ -8,13 +10,22 @@ export type PaginatedList = {
   pages: number;
 };
 
-/** 远端返回了 HTTP 错误。message 形如 HTTP 404，供同步错误列表使用 */
+/**
+ * 远端返回了 HTTP 错误。
+ * message 带上状态码和说明，供连接失败提示和同步错误列表使用。
+ */
 export class GithubHttpError extends Error {
   /**
    * @param statusCode 响应状态码
+   * @param detail 从正文或额度头整理出的说明。没有额外信息时为空
+   * @param retryAt 额度恢复时间。不是限流时为空，调用方应停止后续请求
    */
-  constructor(readonly statusCode: number) {
-    super(`HTTP ${statusCode}`);
+  constructor(
+    readonly statusCode: number,
+    readonly detail: string | null = null,
+    readonly retryAt: Date | null = null,
+  ) {
+    super(detail ? `HTTP ${statusCode}：${detail}` : `HTTP ${statusCode}`);
     this.name = 'GithubHttpError';
   }
 }
@@ -59,7 +70,8 @@ function readNextLink(header: string | null): string | null {
 
 /**
  * 按页拉取列表，直到没有下一页或条数达到 limit。
- * 每页最多 100 条。limit 只计算 include 留下的记录。
+ * 每页固定请求 100 条。limit 只计算 include 留下的记录，不缩小页大小，
+ * 否则小上限会把一次同步拆成大量请求，很快打满匿名额度。
  * 被 limit 截断或响应里还有下一页时，complete 为 false。
  *
  * @param input.baseUrl 接口根地址，末尾斜杠会被去掉
@@ -81,7 +93,7 @@ export async function getPaginated(input: {
   for (const [key, value] of Object.entries(input.params ?? {})) {
     first.searchParams.set(key, String(value));
   }
-  first.searchParams.set('per_page', String(Math.min(limit ?? 100, 100)));
+  first.searchParams.set('per_page', '100');
 
   const items: Record<string, unknown>[] = [];
   let url: string | null = first.toString();
@@ -92,7 +104,7 @@ export async function getPaginated(input: {
       headers: githubHeaders(input.token),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!response.ok) throw new GithubHttpError(response.status);
+    if (!response.ok) throw await toGithubError(response);
     const resJson = await response.json();
     const accepted = readBatch(resJson).filter(
       (item) => !input.include || input.include(item),
@@ -145,10 +157,69 @@ export async function getJson(input: {
     headers: githubHeaders(input.token),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!response.ok) throw new GithubHttpError(response.status);
+  if (!response.ok) throw await toGithubError(response);
   const payload: unknown = await response.json();
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw valueError('GitHub 对象响应的形状不符合预期');
   }
   return payload as Record<string, unknown>;
+}
+
+/**
+ * 把非 2xx 收成 GithubHttpError。
+ * 额度用尽时写明是匿名还是 token、每小时上限和恢复时间，并带上 retryAt。
+ * 其它错误尽量带上 GitHub 原文；正文不是 JSON 时只保留状态码。
+ *
+ * @param response 已经确认不是 2xx 的响应。正文会在这里读完
+ */
+async function toGithubError(response: Response): Promise<GithubHttpError> {
+  const githubMessage = await readGithubMessage(response);
+  const remaining = response.headers.get('x-ratelimit-remaining');
+  const limit = Number(response.headers.get('x-ratelimit-limit'));
+  const resetSeconds = Number(response.headers.get('x-ratelimit-reset'));
+  const retryAt =
+    Number.isFinite(resetSeconds) && resetSeconds > 0
+      ? new Date(resetSeconds * 1000)
+      : null;
+  const rateLimited =
+    (response.status === 403 || response.status === 429) && remaining === '0';
+  if (rateLimited) {
+    const when = retryAt ? `，约 ${formatReset(retryAt)} 恢复` : '';
+    const hourly = Number.isFinite(limit) && limit > 0 ? limit : 60;
+    const detail =
+      hourly <= 60
+        ? `当前 IP 的匿名额度已用完（每小时 ${hourly} 次${when}）。公开仓库在额度用完后也要填写 Access Token`
+        : `Access Token 的额度已用完（每小时 ${hourly} 次${when}）。请等额度恢复后再连接`;
+    return new GithubHttpError(response.status, detail, retryAt);
+  }
+  if (response.status === 401) {
+    return new GithubHttpError(response.status, 'Access Token 无效或已过期');
+  }
+  return new GithubHttpError(response.status, githubMessage);
+}
+
+/**
+ * 读取 GitHub 错误正文里的 message。
+ * 没有这段、或正文不是 JSON 时返回 null。
+ *
+ * @param response 失败响应
+ */
+async function readGithubMessage(response: Response): Promise<string | null> {
+  try {
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    const message = (payload as { message?: unknown }).message;
+    return typeof message === 'string' && message.trim() ? message.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 额度恢复时间，用本机时区显示到分钟。
+ *
+ * @param date x-ratelimit-reset 对应的时间
+ */
+function formatReset(date: Date): string {
+  return dayjs(date).format('M/D HH:mm');
 }
