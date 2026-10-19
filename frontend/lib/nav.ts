@@ -46,11 +46,11 @@ export const navItems: NavItem[] = [
     label: "Runs",
     description: "查看多步骤协作任务的目标、各步骤结果和最终结论。",
   },
-  {
-    href: "/workspaces",
-    label: "团队工作区",
-    description: "把多个仓库组成工作区，并按时间范围生成跨仓库的研发周报。",
-  },
+  // {
+  //   href: "/workspaces",
+  //   label: "团队工作区",
+  //   description: "把多个仓库组成工作区，并按时间范围生成跨仓库的研发周报。",
+  // },
   {
     href: "/reports",
     label: "研发周报",

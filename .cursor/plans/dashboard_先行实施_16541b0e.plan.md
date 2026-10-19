@@ -1,6 +1,6 @@
 ---
 name: Dashboard 先行实施
-overview: 菜单不是各自独立的。按数据依赖从底向上做：Repos 是入口，接着做不依赖检索和对话的四个页面，再做知识库和 RAG，然后补分析 Agent 才能做 Runs，Dashboard 作为聚合页放在后面，Evals 最后。
+overview: 菜单不是各自独立的。按数据依赖从底向上做：Repos 是入口，接着做不依赖检索和对话的研发周报和 Drafts，再做知识库和 RAG，然后补分析 Agent 才能做 Runs，Dashboard 作为聚合页放在后面，Evals 最后。团队工作区延后。
 todos:
   - id: m0-base
     content: 底座：连接已有 Postgres、启用 vector、配置校验、公共能力、前端 API 客户端
@@ -15,8 +15,8 @@ todos:
     content: 研发周报：按时间窗汇总已同步的 Issue/PR/CI
     status: completed
   - id: m4-workspaces
-    content: 团队工作区：多仓分组与跨仓周报
-    status: pending
+    content: 团队工作区延后，见 later-workspaces
+    status: cancelled
   - id: m5-drafts
     content: Drafts：草稿创建、确认执行、取消与审计
     status: pending
@@ -47,12 +47,15 @@ todos:
   - id: later-code-graph
     content: 待办：现有菜单全部完成后再做 Code Graph。检出仓库、提取符号和调用关系、按符号搜索，并为 PR 准备代码快照。当前页面保持占位
     status: pending
+  - id: later-workspaces
+    content: 待办：现有菜单全部完成后再做团队工作区。多个仓库组成工作区，并生成跨仓库周报。当前单仓研发周报已够用，页面保持占位且不出现在顶栏
+    status: pending
 isProject: false
 ---
 
 # 菜单实施顺序
 
-不先做 Dashboard。它是聚合页，把仓库、分析、记忆和对话摊在同一屏里，一开始做等于把后面九个菜单的后端提前做完。顶栏顺序只是导航，不是实施顺序。
+不先做 Dashboard。它是聚合页，把仓库、分析、记忆和对话摊在同一屏里，一开始做等于把后面几个菜单的后端提前做完。顶栏顺序只是导航，不是实施顺序。团队工作区不在当前顺序里。
 
 算法细节仍以 [全量重写方案](.cursor/plans/devflow_全量重写方案_634f3f36.plan.md) 第 2 节为准。每一步动手前回读对应源码。不创建 `docker-compose.yml`，Postgres 用本机已有实例，`DATABASE_URL` 放在 `backend/.env`。
 
@@ -60,7 +63,7 @@ isProject: false
 
 真正独立的只有「已经有仓库数据之后」的三条线，它们彼此不调用：
 
-- 研发周报只读已同步的 Issue、PR、CI；团队工作区复用这份周报
+- 研发周报只读已同步的 Issue、PR、CI。团队工作区延后，见文末待办
 - Drafts 只用仓库 token 去执行写操作
 - Code Graph 延后。它只读检出的代码和 PR 列表，当前菜单不依赖它
 
@@ -73,7 +76,6 @@ flowchart TD
   base[底座]
   repos[Repos]
   report[研发周报]
-  workspace[团队工作区]
   drafts[Drafts]
   knowledge[项目知识]
   rag[RAG工作室]
@@ -83,7 +85,6 @@ flowchart TD
   evals[Evals]
   base --> repos
   repos --> report
-  report --> workspace
   repos --> drafts
   repos --> knowledge
   knowledge --> rag
@@ -123,9 +124,7 @@ flowchart TD
 
 ### 4. 团队工作区
 
-依赖第 3 步的周报。做工作区的创建、列表和 `POST /api/workspaces/multi-repo-report`，以及 [frontend/app/workspaces/page.tsx](frontend/app/workspaces/page.tsx)。表：`workspaces`。风险按失败 CI、open PR、open Issue 分 high / medium / low。
-
-验证：勾选两个已同步仓库生成一份跨仓周报，每个仓库各有一份 `weekly_report`；viewer 角色调用返回 403。
+延后，见文末待办。页面保持占位，顶栏不显示。做的时候再创建工作区、列出工作区，并按时间范围生成跨仓库周报。表：`workspaces`。风险按失败 CI、open PR、open Issue 分 high / medium / low。
 
 ### 5. Drafts
 
@@ -176,3 +175,5 @@ flowchart TD
 GitHub Actions 同步。拉取仓库的 workflow run 和 job，失败运行再下载日志并写入 `workflow_runs`。当前连接和刷新只同步 Issue 与 Pull Request，Webhook 也不处理 `workflow_run`、`check_suite`、`check_run`。
 
 Code Graph。检出已连接仓库，提取符号和调用、导入关系，页面按符号搜索，并为某条 Pull Request 准备单独的代码快照。当前 Code Graph 页面保持占位，连接和刷新仓库时不建立代码图。
+
+团队工作区。把多个已连接仓库组成一个工作区，并生成一份跨仓库周报。当前单仓研发周报已够用，顶栏不显示这一项，页面保持占位。
