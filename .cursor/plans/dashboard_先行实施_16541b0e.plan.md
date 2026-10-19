@@ -35,6 +35,15 @@ todos:
   - id: m10-evals
     content: Evals：在完整对话链路上跑评测
     status: pending
+  - id: later-github-compatible
+    content: 待办：现有菜单全部完成后再考虑自定义 GitHub-compatible API（GitHub Enterprise、Gitea，或兼容 GitHub REST 的网关）。当前只连接 github.com
+    status: pending
+  - id: later-local-repo
+    content: 待办：现有菜单全部完成后再考虑本地仓库连接。用本机已有 git 目录解析 origin，checkout_mode=local。当前只按所有者和仓库名连接 GitHub
+    status: pending
+  - id: later-actions
+    content: 待办：现有菜单全部完成后再同步 GitHub Actions。拉取 workflow run、job，失败运行再下载日志。当前仓库同步只拉 Issue 和 Pull Request
+    status: pending
 isProject: false
 ---
 
@@ -98,7 +107,7 @@ flowchart TD
 
 ### 1. Repos
 
-这是后面所有菜单的数据入口。做 GitHub 同步、`POST /api/repos/connect`、列表、select、sync、delete，以及 [frontend/app/repos/page.tsx](frontend/app/repos/page.tsx)。表：`repositories`、`issues`、`pull_requests`、`pr_files`、`pr_review_comments`、`workflow_runs`、`audit_logs`。
+这是后面所有菜单的数据入口。做 GitHub 同步、`POST /api/repos/connect`、列表、select、sync、delete，以及 [frontend/app/repos/page.tsx](frontend/app/repos/page.tsx)。表：`repositories`、`issues`、`pull_requests`、`pr_files`、`pr_review_comments`、`audit_logs`。Actions 运行记录延后。
 
 验证：页面连接一个远程仓库后能看到同步结果；「设为当前查看」后排序变化；刷新和删除可用。jest 覆盖分页、limit 截断和子请求失败降为 partial。
 
@@ -159,3 +168,11 @@ flowchart TD
 依赖第 9 步的生产对话。做基础评测、Judge 指标、评测任务和 [frontend/app/evals/page.tsx](frontend/app/evals/page.tsx)。表：`eval_runs`。
 
 验证：页面选择评测集后能看到进度、指标和逐题证据；评测结束后用户会话表没有新增；刷新页面后进行中的任务继续轮询。
+
+## 全部完成后再考虑
+
+自定义 GitHub-compatible API。面向 GitHub Enterprise、Gitea，或兼容 GitHub REST 的网关：连接时可选自定义接口根地址。当前连接只接受 github.com，接口根地址固定为 `https://api.github.com`。
+
+本地仓库连接。用户填写本机已有的 git 目录，后端用 git 检查仓库并解析 `origin` 得到所有者和仓库名，再记录本地目录。当前页面只填写所有者和仓库名，仓库表不保存本地目录。
+
+GitHub Actions 同步。拉取仓库的 workflow run 和 job，失败运行再下载日志并写入 `workflow_runs`。当前连接和刷新只同步 Issue 与 Pull Request，Webhook 也不处理 `workflow_run`、`check_suite`、`check_run`。

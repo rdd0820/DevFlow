@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { User } from '../database/entities/user.entity';
+import { User } from './entities/user.entity';
 
 /**
  * 维护「当前用户」这一行。

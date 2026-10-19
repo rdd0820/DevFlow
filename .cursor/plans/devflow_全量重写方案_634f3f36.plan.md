@@ -26,6 +26,15 @@ todos:
   - id: p7-evals
     content: 阶段7：基础评测、Judge指标、评测接口与后台任务、前端/evals（步骤41-44）
     status: pending
+  - id: later-github-compatible
+    content: 待办：阶段0到7全部完成后再考虑自定义 GitHub-compatible API（GitHub Enterprise、Gitea，或兼容 GitHub REST 的网关）
+    status: pending
+  - id: later-local-repo
+    content: 待办：阶段0到7全部完成后再考虑本地仓库连接。用本机已有 git 目录解析 origin，checkout_mode=local
+    status: pending
+  - id: later-actions
+    content: 待办：阶段0到7全部完成后再同步 GitHub Actions。拉取 workflow run、job，失败运行再下载日志。当前仓库同步只拉 Issue 和 Pull Request
+    status: pending
 isProject: false
 ---
 
@@ -158,15 +167,12 @@ sequenceDiagram
 
 接口（前缀 `/api/repos`）：
 
-- `POST /connect`：入参 `owner, repo, token|github_token, provider(默认 github), api_base_url, local_path, clone_parent_dir, demo_mode(false), initial_sync_limit(5, 1..50), sync_issues/sync_pull_requests/sync_workflow_runs(true)`。
-  - 本地路径分支：git 校验（30s 超时）`rev-parse --is-inside-work-tree`、`--show-toplevel`、`remote get-url origin`、`branch --show-current`，解析 owner/repo，`checkout_mode=local`
-  - 既无本地路径又缺 owner/repo -> 400；remote host 不是 github.com 时 provider 自动改 `github_compatible`；只允许 github/github_compatible
-  - API base：github 固定 `https://api.github.com`；compatible 用请求值或 `https://{host}/api/v3`
-  - `clone_parent_dir` 只记录目标 `{parent}/{repo}`，连接时不 clone
-  - 非 demo 先 `GET /repos/{owner}/{repo}`；失败时有 token 或全局 demo 关闭 -> 400，否则降级 `sync_status=fallback`
-  - demo_mode=true 只建本地记录，`sync_status=skipped`
-  - 按 `full_name` upsert；空 token 不覆盖旧 token；请求内同步（limit=initial_sync_limit），再后台跑代码图分析
-- `GET /`：排除 `provider=knowledge_base`，按 `updated_at DESC`，不返回 token
+- `POST /connect`：入参 `owner, repo, token`。连接成功后固定同步 Issue 和 PR，第一次每个列表最多 5 条。
+  - 缺 owner 或 repo -> 400。自定义 GitHub-compatible API、以及用本机 git 目录连接，都延后到全部阶段完成后再考虑
+  - 连接只保存 owner、name、token、描述和默认分支。接口固定请求 `https://api.github.com`，不存平台、接口根地址、clone 地址、本地目录和检出方式
+  - 先 `GET /repos/{owner}/{repo}`；失败返回 400，且不写入仓库记录。成功后立刻同步
+  - 按 `full_name` upsert；空 token 不覆盖旧 token；请求内同步（每个列表最多 5 条），再后台跑代码图分析
+- `GET /`：按 `updated_at DESC`，不返回 token
 - `POST /{id}/sync`：`limit` 默认 null（全量）；整体 `failed` 时 HTTP 502；无论成败后台跑代码图
 - `POST /{id}/select`：只把 `updated_at` 置为当前时间
 - `DELETE /{id}`：按依赖顺序硬删约 30 张关联表（分析结果、PR 文件/评论、documents、检索测试、知识源文档与配置、图谱边、索引状态、代码符号/关系、草稿、审计、反馈、记忆候选、召回、工作流、消息、会话、记忆、证据、AgentRun、会话、Issue/PR/Run），从 `workspaces.repo_ids` 移除，再删上传文件；不删本地 checkout
@@ -174,19 +180,19 @@ sequenceDiagram
 
 同步规则：
 
-- GitHub REST：`/repos/{o}/{r}/issues?state=all`（过滤含 `pull_request` 的项）、`/pulls?state=all`、`/pulls/{n}/files`、`/pulls/{n}/comments`、`/actions/runs`、`/actions/runs/{id}/jobs`、失败 run 的 `/logs`（zip，60s）。Header `Accept: application/vnd.github+json`、`X-GitHub-Api-Version: 2022-11-28`、`Authorization: Bearer`；token 空时回退全局 `GITHUB_TOKEN`
+- GitHub REST：`/repos/{o}/{r}/issues?state=all`（过滤含 `pull_request` 的项）、`/pulls?state=all`、`/pulls/{n}/files`、`/pulls/{n}/comments`。Header `Accept: application/vnd.github+json`、`X-GitHub-Api-Version: 2022-11-28`、`Authorization: Bearer`；token 空时回退全局 `GITHUB_TOKEN`。Actions 的 run、job 和失败日志延后
 - 分页：`per_page=min(limit or 100,100)`，跟随 `Link rel=next`；next URL 重复或跨域即报错；limit 只计过滤后条数；截断或仍有 next -> `complete=false`
-- 单源状态 `skipped/completed/empty/partial/failed`；子请求（PR 文件、job、日志）失败时该源降为 partial
+- 单源状态 `skipped/completed/empty/partial/failed`；子请求（PR 文件、评论）失败时该源降为 partial
 - 总状态：全 skipped -> skipped；请求源全 failed -> failed；任一 failed/partial -> partial；有数据 -> completed；否则 empty。只有 completed/empty 更新 `last_sync_at`
-- upsert 按 GitHub id；PR 文件和评论先删后插；远端删除不同步删除；日志按 zip 内文件名排序拼接，上限 80000 字符
-- `sync_metadata = {repo_id, status, synced, sources{issues,pull_requests,workflow_runs:{status,count,complete,pages}}, errors[], message, attempted_at, limit}`
+- upsert 按 GitHub id；PR 文件和评论先删后插；远端删除不同步删除
+- `sync_metadata = {repo_id, status, synced, sources{issues,pull_requests:{status,count,complete,pages}}, errors[], message, attempted_at, limit}`
 - 定时：启动 5 秒后，每 `max(AUTO_SYNC_INTERVAL_SECONDS,30)` 秒串行同步所有 github/compatible 仓库，limit=`AUTO_SYNC_LIMIT`（默认全量）
-- Webhook `POST /api/webhooks/github`：配置了 secret 才校验 `X-Hub-Signature-256`（HMAC-SHA256，失败 401）；事件属于 `issues, pull_request, workflow_run, push, check_suite, check_run` 时后台同步，其它返回 `ignored`
+- Webhook `POST /api/webhooks/github`：配置了 secret 才校验 `X-Hub-Signature-256`（HMAC-SHA256，失败 401）；事件属于 `issues, pull_request, push` 时后台同步，其它返回 `ignored`。`workflow_run`、`check_suite`、`check_run` 延后到 Actions 同步
 - 仓库健康快照 `repositoryHealthSnapshot`：`data_status` 取 `not_synced/unknown/failed/partial/stale(>24h)/empty/ready`，仅 ready 时 `data_sufficient=true`；`status` 为 failed->error、empty->skipped、其它 success；confidence 恒 null
 
 ### M3 本地代码工作区
 
-- checkout 路径：local 模式用用户路径；managed 有 local_path 用该路径；否则 `{REPO_CHECKOUT_DIR}/{repo.id}-{owner__name}`
+- checkout 路径：当前连接没有用户目录，使用 `{REPO_CHECKOUT_DIR}/{repo.id}-{owner__name}`。用户指定本地目录（`checkout_mode=local`）延后到全部阶段完成后再做
 - git（180s 超时）：已存在则 `fetch --depth 1 origin {branch}`、`checkout`、`pull --ff-only`，失败继续用旧文件；不存在则 `clone --depth 1 --branch {branch}`；HTTPS URL 注入 `x-access-token:{token}@`；托管目录非 git 时先删再 clone，用户目录不删
 - 代码图 `syncCodeGraph`：最多 500 个有符号文件，单文件 180000 字节；正则提取 Python `def/class`、TS/JS `function/class/interface/type/const/let`；关系为 `imports`（from/import 语句）和 `calls`（`name(`，跳过 if/for/while/return/print/len/str/int，同文件只记一次）；按 `(repo, branch, pr_id)` 先删后写 `code_symbols`/`code_relations`
 - PR 快照 `preparePrWorktree`：local 模式 `unsupported`；无 head `missing_head`；路径 `{root}/worktrees/{repoId}/pr-{n}-{owner__name}`，分支 `devflow/pr-{n}`，`worktree add --force -B`；写 `.devflow-pr-snapshot.json`；成功 `ready`，异常 `fallback`；同一 repo+pr 进程内加锁；清理默认 168 小时
@@ -404,7 +410,7 @@ sequenceDiagram
    - 做法：checkout/浅克隆/更新、代码图正则提取、PR 快照与清理、代码搜索（rg 与遍历两种实现）、路径安全校验
    - 验证：连接后 `.data/repos/{id}-...` 出现代码；`POST /api/repos/{id}/code-graph/rebuild` 返回 `indexed_symbols>0`；`GET /code-graph/search?q=xxx` 返回符号与片段；jest 验证 `../` 越界与 `.env` 被拒
 8. 前端 `/repos`（对照 `frontend/app/repos/page.tsx`）
-   - 验证：页面连接一个远程仓库与一个本地仓库，结果 JSON 显示；「设为当前查看」后列表顺序变化；「立即刷新」与删除可用
+   - 验证：页面用所有者和仓库名连接一个 GitHub 仓库，结果 JSON 显示；「设为当前查看」后列表顺序变化；「立即刷新」与删除可用
 
 ### 阶段 2：RAG 知识库与项目索引
 

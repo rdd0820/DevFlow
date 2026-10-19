@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { AuditLog } from '../database/entities/audit-log.entity';
-import { User } from '../database/entities/user.entity';
+import { User } from '../users/entities/user.entity';
+import { AuditLog } from './entities/audit-log.entity';
 
 /** 写入一条审计记录时调用方要提供的内容。未传的状态和快照使用空对象与 success */
 export type WriteAuditInput = {

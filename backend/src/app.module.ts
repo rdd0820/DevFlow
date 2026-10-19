@@ -1,8 +1,17 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Client } from 'pg';
 
+import { AuditLog } from './audit/entities/audit-log.entity';
 import { AuditModule } from './audit/audit.module';
-import { DatabaseModule } from './database/database.module';
+import { Issue } from './repos/entities/issue.entity';
+import { PrFile } from './repos/entities/pr-file.entity';
+import { PrReviewComment } from './repos/entities/pr-review-comment.entity';
+import { PullRequest } from './repos/entities/pull-request.entity';
+import { Repository } from './repos/entities/repository.entity';
+import { ReposModule } from './repos/repos.module';
+import { User } from './users/entities/user.entity';
 import { UsersModule } from './users/users.module';
 import { AppController } from './app.controller';
 
@@ -17,8 +26,28 @@ const envFileByNodeEnv = {
 };
 
 /**
+ * 启动时同步建表的实体。
+ * 各模块的表定义集中在这里注册，连接不再单独做模块。
+ */
+const entities = [User, AuditLog, Repository, Issue, PullRequest, PrFile, PrReviewComment];
+
+/**
+ * 连接后、建表前准备数据库。
+ * 先启用 vector，后面的文档表才能使用向量列。表本身由同步按实体创建。
+ */
+async function prepareDatabase(databaseUrl: string): Promise<void> {
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+  } finally {
+    await client.end();
+  }
+}
+
+/**
  * 应用根模块。
- * 按 NODE_ENV 加载对应环境文件，再连接数据库。用户模块带上全局权限守卫。
+ * 按 NODE_ENV 加载对应环境文件，再按实体列表连接数据库。用户模块带上全局权限守卫。
  */
 @Module({
   imports: [
@@ -27,9 +56,22 @@ const envFileByNodeEnv = {
       envFilePath:
         envFileByNodeEnv[process.env.NODE_ENV as keyof typeof envFileByNodeEnv] || '.env',
     }),
-    DatabaseModule,
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => {
+        const databaseUrl = config.getOrThrow<string>('DATABASE_URL');
+        await prepareDatabase(databaseUrl);
+        return {
+          type: 'postgres' as const,
+          url: databaseUrl,
+          synchronize: true,
+          entities,
+        };
+      },
+    }),
     UsersModule,
     AuditModule,
+    ReposModule,
   ],
   controllers: [AppController],
 })

@@ -34,7 +34,7 @@ export const navItems: NavItem[] = [
   {
     href: "/repos",
     label: "Repos",
-    description: "连接远程或本地仓库，查看同步范围，并手动刷新或移除仓库。",
+    description: "连接 GitHub 仓库，查看同步范围，并手动刷新或移除仓库。",
   },
   {
     href: "/action-drafts",

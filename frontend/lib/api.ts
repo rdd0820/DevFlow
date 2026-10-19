@@ -1,5 +1,5 @@
-/** 后端根地址。开发时后端固定监听本机 8000 端口 */
-export const API_BASE_URL = 'http://localhost:8000'
+/** 后端根地址。开发时后端监听本机 3010 端口 */
+export const API_BASE_URL = 'http://localhost:3010'
 
 /** 浏览器连不上后端时抛出的说明，页面可以直接显示这句话 */
 const NETWORK_ERROR_MESSAGE = '无法访问后端 API，请确认后端服务已经启动。'
@@ -110,45 +110,4 @@ export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
   const response = await request(path, { method: 'POST', body })
   if (!response.ok) await throwApiError(response)
   return response.json() as Promise<T>
-}
-
-/**
- * 读取以空行分隔的事件流。
- * 每个事件取 event 行和 data 行，data 按 JSON 解析后交给 onEvent。
- */
-export async function apiPostStream(
-  path: string,
-  body: unknown,
-  onEvent: (event: string, data: unknown) => void,
-  options: { signal?: AbortSignal } = {},
-): Promise<void> {
-  const response = await request(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: options.signal,
-  })
-  if (!response.ok) await throwApiError(response)
-  if (!response.body) throw new Error('响应里没有可读取的数据流。')
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const events = buffer.split('\n\n')
-    buffer = events.pop() ?? ''
-    for (const rawEvent of events) {
-      const lines = rawEvent.split('\n')
-      const event = lines.find((line) => line.startsWith('event: '))?.slice(7) ?? 'message'
-      const dataText = lines
-        .filter((line) => line.startsWith('data: '))
-        .map((line) => line.slice(6))
-        .join('\n')
-      if (dataText) onEvent(event, JSON.parse(dataText) as unknown)
-    }
-  }
 }

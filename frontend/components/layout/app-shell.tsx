@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ThemeToggle />
         </nav>
       </header>
-      <main className="min-h-0 flex-1">{children}</main>
+      <main className="min-h-0 flex-1 p-4">{children}</main>
     </div>
   )
 }
